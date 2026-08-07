@@ -28,4 +28,6 @@
 - 拒绝屏幕录制权限时应出现说明和“打开系统设置”，且应用继续运行。
 - 权限列表未显示应用时，提示中的“在访达中显示应用”应定位到当前 `.app`，可通过系统设置左下角 `+` 手动添加。
 - 使用 Apple Development + Team 连续构建两次后，屏幕录制授权应保留；不要用 ad-hoc 签名验证权限持久性。
-- 导出后检查系统临时目录中不残留 `RegionRecorder-*` 目录。
+- 导出后检查系统临时目录中不残留 `com.local.RegionRecorder.recording-cache` 目录。
+- 中止录制或模拟遗留会话后，确认下一次录制前会删除整个专用缓存目录。
+- Build 后确认 `RegionRecorder.xcodeproj` 同级的 `app/RegionRecorder.app` 已生成；重复 Build 后该应用被新构建覆盖。

@@ -9,6 +9,7 @@
 - macOS 14 或更高版本
 - Xcode 15 或更高版本（项目已用 Xcode 26.6 验证）
 - 打开 `RegionRecorder.xcodeproj`，选择 `RegionRecorder` scheme 后运行
+- 每次使用共享的 `RegionRecorder` scheme 执行 Build 时，构建前只会删除既有的 `app/RegionRecorder.app`，随后将新应用固定生成在项目同级的同一位置，避免残留旧插件或资源
 - 第一次录制时，在系统提示中授予“屏幕与系统音频录制”权限；应用不申请麦克风权限
 
 ### macOS 26 开发签名与屏幕录制权限
@@ -52,7 +53,8 @@ xcodebuild -project RegionRecorder.xcodeproj \
 - 捕获过滤器排除本应用的所有窗口，因此边框、菜单和提示不会进入结果。
 - AVFoundation 仅创建 H.264 视频轨，不创建音频输入或音轨。
 - GIF 先录制为无声的本地临时 MP4，再由 AVAssetReader + ImageIO 逐帧生成无限循环 GIF。
-- 临时目录在导出成功或失败时清理；应用没有网络代码或网络 entitlement，隐私清单声明不跟踪、不收集数据。为无提示写入固定的桌面目录，应用不启用 App Sandbox。
+- 每次录制使用系统临时目录下独立的专用会话目录。导出成功、失败或主动中止后会释放编码器并删除整个会话目录；下一次录制前还会清扫异常退出遗留的缓存。GIF 的 Core Image 缓存也会主动清除。
+- 应用没有网络代码或网络 entitlement，隐私清单声明不跟踪、不收集数据。为无提示写入固定的桌面目录，应用不启用 App Sandbox。
 - 支持在任意连接的显示器上创建选区。为保证不同显示器缩放比例下像素严格对齐，单次选区会被约束在一个显示器的可见区域内；拖到另一显示器后会自动切换显示器与 backing scale。
 
 ## 测试
@@ -65,5 +67,6 @@ xcodebuild -project RegionRecorder.xcodeproj \
 - 选区始终位于显示器可见区域（不覆盖菜单栏）
 - 透明轮廓内部不命中、边缘命中
 - 合成帧生成的 MP4 没有音轨，并可经正式导出管线转换为可解析、无限循环的 GIF
+- 录制会话目录中的 MP4、GIF、嵌套编码缓存以及异常中止遗留均可完整清除
 
 屏幕录制权限、真实鼠标穿透、MP4/GIF 播放以及物理 Retina/多显示器对齐属于系统集成测试，需要在本机运行应用完成。详见 `TESTING.md`。

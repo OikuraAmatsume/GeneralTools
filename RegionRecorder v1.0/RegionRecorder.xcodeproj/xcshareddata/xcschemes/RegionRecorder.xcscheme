@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "2660"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES"
+      buildArchitectures = "Automatic">
+      <PreActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Replace app build output"
+               scriptText = "set -eu&#10;OUTPUT_DIR=&quot;${PROJECT_DIR}/app&quot;&#10;OUTPUT_APP=&quot;${OUTPUT_DIR}/RegionRecorder.app&quot;&#10;EXPECTED_APP=&quot;${PROJECT_DIR}/app/RegionRecorder.app&quot;&#10;if [ &quot;${OUTPUT_APP}&quot; != &quot;${EXPECTED_APP}&quot; ]; then&#10;    echo &quot;Refusing to remove unexpected path: ${OUTPUT_APP}&quot; &gt;&amp;2&#10;    exit 1&#10;fi&#10;/bin/mkdir -p &quot;${OUTPUT_DIR}&quot;&#10;if [ -e &quot;${OUTPUT_APP}&quot; ]; then&#10;    /bin/rm -rf -- &quot;${OUTPUT_APP}&quot;&#10;fi">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "DD0000000000000000000010"
+                     BuildableName = "RegionRecorder.app"
+                     BlueprintName = "RegionRecorder"
+                     ReferencedContainer = "container:RegionRecorder.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PreActions>
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DD0000000000000000000010"
+               BuildableName = "RegionRecorder.app"
+               BlueprintName = "RegionRecorder"
+               ReferencedContainer = "container:RegionRecorder.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DD0000000000000000000011"
+               BuildableName = "RegionRecorderTests.xctest"
+               BlueprintName = "RegionRecorderTests"
+               ReferencedContainer = "container:RegionRecorder.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "DD0000000000000000000010"
+            BuildableName = "RegionRecorder.app"
+            BlueprintName = "RegionRecorder"
+            ReferencedContainer = "container:RegionRecorder.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "DD0000000000000000000010"
+            BuildableName = "RegionRecorder.app"
+            BlueprintName = "RegionRecorder"
+            ReferencedContainer = "container:RegionRecorder.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>

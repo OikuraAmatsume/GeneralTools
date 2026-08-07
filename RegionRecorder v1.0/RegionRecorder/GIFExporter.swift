@@ -54,6 +54,7 @@ enum GIFExporter {
                 ] as [CFString: Any]
             ]
             let context = CIContext(options: [.cacheIntermediates: false])
+            defer { context.clearCaches() }
 
             guard reader.startReading() else {
                 throw reader.error ?? RecordingError.gifEncodingFailed

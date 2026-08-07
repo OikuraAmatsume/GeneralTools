@@ -4,6 +4,42 @@ import XCTest
 @testable import RegionRecorder
 
 final class MediaExportTests: XCTestCase {
+    func testRecordingTemporaryStoreRemovesEveryIntermediateArtifact() throws {
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RegionRecorderStoreTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+
+        let store = try RecordingTemporaryStore.create(temporaryRoot: temporaryRoot)
+        XCTAssertTrue(FileManager.default.createFile(atPath: store.movieURL.path, contents: Data("movie".utf8)))
+        XCTAssertTrue(FileManager.default.createFile(atPath: store.gifURL.path, contents: Data("gif".utf8)))
+        let nestedCache = store.sessionURL.appendingPathComponent("encoder-cache", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedCache, withIntermediateDirectories: false)
+        XCTAssertTrue(FileManager.default.createFile(
+            atPath: nestedCache.appendingPathComponent("frame.cache").path,
+            contents: Data("frame".utf8)
+        ))
+
+        try store.removeAllArtifacts()
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.sessionURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.rootURL.path))
+    }
+
+    func testRecordingTemporaryStorePurgesArtifactsFromInterruptedSession() throws {
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RegionRecorderStaleStoreTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+
+        let store = try RecordingTemporaryStore.create(temporaryRoot: temporaryRoot)
+        XCTAssertTrue(FileManager.default.createFile(atPath: store.movieURL.path, contents: Data("partial".utf8)))
+
+        try RecordingTemporaryStore.removeStaleArtifacts(temporaryRoot: temporaryRoot)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.rootURL.path))
+    }
+
     func testSilentMP4TranscodesToLoopingGIF() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("RegionRecorderMediaTests-\(UUID().uuidString)", isDirectory: true)

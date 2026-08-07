@@ -13,6 +13,7 @@ enum RecordingError: LocalizedError {
     case noFramesCaptured
     case gifCreationFailed
     case gifEncodingFailed
+    case temporaryCleanupFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -32,6 +33,62 @@ enum RecordingError: LocalizedError {
             "无法创建 GIF 文件。"
         case .gifEncodingFailed:
             "GIF 编码失败。"
+        case .temporaryCleanupFailed(let details):
+            "无法清理录制临时文件：\(details)"
+        }
+    }
+}
+
+struct RecordingTemporaryStore {
+    static let rootDirectoryName = "com.local.RegionRecorder.recording-cache"
+
+    let rootURL: URL
+    let sessionURL: URL
+    let movieURL: URL
+    let gifURL: URL
+
+    static func create(
+        fileManager: FileManager = .default,
+        temporaryRoot: URL? = nil
+    ) throws -> RecordingTemporaryStore {
+        let rootURL = (temporaryRoot ?? fileManager.temporaryDirectory)
+            .appendingPathComponent(rootDirectoryName, isDirectory: true)
+        try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+
+        let sessionURL = rootURL
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: sessionURL, withIntermediateDirectories: false)
+
+        return RecordingTemporaryStore(
+            rootURL: rootURL,
+            sessionURL: sessionURL,
+            movieURL: sessionURL.appendingPathComponent("capture.mp4"),
+            gifURL: sessionURL.appendingPathComponent("capture.gif")
+        )
+    }
+
+    static func removeStaleArtifacts(
+        fileManager: FileManager = .default,
+        temporaryRoot: URL? = nil
+    ) throws {
+        let rootURL = (temporaryRoot ?? fileManager.temporaryDirectory)
+            .appendingPathComponent(rootDirectoryName, isDirectory: true)
+        guard fileManager.fileExists(atPath: rootURL.path) else { return }
+        try fileManager.removeItem(at: rootURL)
+    }
+
+    func removeAllArtifacts(fileManager: FileManager = .default) throws {
+        if fileManager.fileExists(atPath: sessionURL.path) {
+            try fileManager.removeItem(at: sessionURL)
+        }
+
+        guard fileManager.fileExists(atPath: rootURL.path) else { return }
+        let remainingItems = try fileManager.contentsOfDirectory(
+            at: rootURL,
+            includingPropertiesForKeys: nil
+        )
+        if remainingItems.isEmpty {
+            try fileManager.removeItem(at: rootURL)
         }
     }
 }
@@ -48,8 +105,7 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
     private var sampleError: Error?
     private var stopping = false
 
-    private var temporaryDirectory: URL?
-    private var temporaryMovieURL: URL?
+    private var temporaryStore: RecordingTemporaryStore?
     private var destinationURL: URL?
     private var settings: RecordingSettings?
 
@@ -59,19 +115,20 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         settings: RecordingSettings,
         destinationURL: URL
     ) async throws {
-        let fileManager = FileManager.default
-        let temporaryDirectory = fileManager.temporaryDirectory
-            .appendingPathComponent("RegionRecorder-\(UUID().uuidString)", isDirectory: true)
-
         do {
-            try fileManager.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+            try RecordingTemporaryStore.removeStaleArtifacts()
+        } catch {
+            throw RecordingError.temporaryCleanupFailed(error.localizedDescription)
+        }
+
+        let temporaryStore: RecordingTemporaryStore
+        do {
+            temporaryStore = try RecordingTemporaryStore.create()
         } catch {
             throw RecordingError.cannotCreateTemporaryDirectory
         }
 
-        let temporaryMovieURL = temporaryDirectory.appendingPathComponent("capture.mp4")
-        self.temporaryDirectory = temporaryDirectory
-        self.temporaryMovieURL = temporaryMovieURL
+        self.temporaryStore = temporaryStore
         self.destinationURL = destinationURL
         self.settings = settings
 
@@ -122,7 +179,7 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
             configuration.shouldBeOpaque = true
 
             try configureWriter(
-                at: temporaryMovieURL,
+                at: temporaryStore.movieURL,
                 width: Int(pixelSize.width),
                 height: Int(pixelSize.height),
                 frameRate: settings.frameRate
@@ -140,7 +197,7 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
 
     func stopAndExport() async throws -> URL {
         guard let stream, let writer, let writerInput,
-              let temporaryDirectory, let temporaryMovieURL,
+              let temporaryStore,
               let destinationURL, let settings else {
             throw RecordingError.cannotConfigureEncoder
         }
@@ -172,24 +229,23 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
             let producedURL: URL
             switch settings.format {
             case .mp4:
-                producedURL = temporaryMovieURL
+                producedURL = temporaryStore.movieURL
             case .gif:
-                let gifURL = temporaryDirectory.appendingPathComponent("capture.gif")
                 try await GIFExporter.export(
-                    movieURL: temporaryMovieURL,
-                    outputURL: gifURL,
+                    movieURL: temporaryStore.movieURL,
+                    outputURL: temporaryStore.gifURL,
                     expectedFrameCount: captureState.1,
                     frameRate: settings.frameRate
                 )
-                try? FileManager.default.removeItem(at: temporaryMovieURL)
-                producedURL = gifURL
+                try FileManager.default.removeItem(at: temporaryStore.movieURL)
+                producedURL = temporaryStore.gifURL
             }
 
             try install(producedURL, at: destinationURL)
-            cleanupTemporaryFiles()
+            try cleanupTemporaryFiles()
             return destinationURL
         } catch {
-            cleanupTemporaryFiles()
+            try? cleanupTemporaryFiles()
             throw error
         }
     }
@@ -201,7 +257,7 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         }
         self.stream = nil
         writer?.cancelWriting()
-        cleanupTemporaryFiles()
+        try? cleanupTemporaryFiles()
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
@@ -301,11 +357,30 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         }
     }
 
-    private func cleanupTemporaryFiles() {
-        if let temporaryDirectory {
-            try? FileManager.default.removeItem(at: temporaryDirectory)
+    private func cleanupTemporaryFiles() throws {
+        let store = temporaryStore
+
+        stream = nil
+        writerInput = nil
+        writer = nil
+        temporaryStore = nil
+        destinationURL = nil
+        settings = nil
+        sessionStarted = false
+        framesWritten = 0
+        sampleError = nil
+
+        guard let store else { return }
+        do {
+            try store.removeAllArtifacts()
+        } catch {
+            // Releasing the encoder above normally removes all file handles. Retry once so a
+            // transient filesystem race cannot leave a completed recording cache behind.
+            do {
+                try store.removeAllArtifacts()
+            } catch {
+                throw RecordingError.temporaryCleanupFailed(error.localizedDescription)
+            }
         }
-        temporaryDirectory = nil
-        temporaryMovieURL = nil
     }
 }

@@ -1,6 +1,7 @@
 .DS_Store
 DerivedData/
 build/
+app/
 *.xcuserstate
 xcuserdata/
 *.xccheckout
