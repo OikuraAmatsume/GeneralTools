@@ -1,38 +1,42 @@
-# InputSwitcher
+# Amatsume init
 
-一个极简的 macOS F13 输入法切换工具。程序监听全局 F13 按键，并向系统发送 `Control–空格`，实现类似 Mac 地球仪键的输入法切换效果。
+`Amatsume init` 是一个无主窗口、无 Dock 图标的 macOS 菜单栏应用。它监听 F13，并向 macOS 发送 `Control–空格`，实现输入法切换。
 
-## 要求
+## 菜单栏功能
 
-- macOS
-- Apple Silicon Mac
-- Xcode Command Line Tools（用于从源码构建）
-- “系统设置 → 键盘 → 键盘快捷键 → 输入法”中的 `Control–空格` 已启用
+启动后，屏幕右上角会出现地球仪图标。单击或右键图标可以查看：
 
-## 构建与运行
+- 当前监听状态
+- `F13 → 切换输入法`
+- 使用的系统快捷键
+- 辅助功能权限入口
+- 软件版本号
+- 退出按键
+
+如果辅助功能权限尚未开启，图标会变成警告标志，并在授权完成后自动启动键盘监听。
+
+## 构建
+
+需要 macOS 13 或更高版本，以及 Xcode Command Line Tools。
 
 ```bash
 ./build.sh
-./InputSwitcher
 ```
 
-首次运行时，请在“系统设置 → 隐私与安全性”中为 `InputSwitcher` 开启：
-
-- 辅助功能
-- 输入监控（如果系统要求）
-
-授权后重新启动程序。终端显示以下信息即代表监听已启动：
+生成的应用位于：
 
 ```text
-F13 输入法切换已启动。按 Control-C 停止。
+build/Amatsume init.app
 ```
 
-按 `Control-C` 可以退出。
+双击应用即可运行。由于这是本地临时签名版本，首次运行时请在“系统设置 → 隐私与安全性 → 辅助功能”中允许 `Amatsume init`。
+
+同时确认“系统设置 → 键盘 → 键盘快捷键 → 输入法”中的 `Control–空格` 已启用。
 
 ## 工作方式
 
 ```text
-F13 → 拦截按键 → 发送 Control–空格 → macOS 切换输入法
+F13 → Amatsume init → Control–空格 → macOS 切换输入法
 ```
 
-本工具只模拟地球仪键的“切换输入法”效果，不提供其他 Fn/地球仪组合键功能。
+本应用只实现地球仪键的输入法切换效果，不模拟其他 Fn/地球仪组合键。
