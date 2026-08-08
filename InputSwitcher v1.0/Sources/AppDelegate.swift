@@ -31,12 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
 
-        let icon = NSImage(
-            systemSymbolName: "globe",
-            accessibilityDescription: "Amatsume init"
-        )
-        icon?.isTemplate = true
-        button.image = icon
+        button.image = StatusIcon.image(isActive: false)
         button.toolTip = "Amatsume init"
         button.target = self
         button.action = #selector(showStatusMenu(_:))
@@ -47,7 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenu.autoenablesItems = false
 
         let titleItem = NSMenuItem(title: "Amatsume init", action: nil, keyEquivalent: "")
-        titleItem.image = NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
+        titleItem.image = StatusIcon.image(isActive: true)
         titleItem.isEnabled = false
         statusMenu.addItem(titleItem)
 
@@ -113,25 +108,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch state {
         case .running:
             statusMenuItem.title = "状态：运行中"
-            setStatusIcon(symbolName: "globe")
+            setStatusIcon(isActive: true)
             permissionTimer?.invalidate()
             permissionTimer = nil
         case .permissionRequired:
             statusMenuItem.title = "状态：需要辅助功能权限"
-            setStatusIcon(symbolName: "exclamationmark.triangle")
+            setStatusIcon(isActive: false)
         case .failed:
             statusMenuItem.title = "状态：无法启动键盘监听"
-            setStatusIcon(symbolName: "exclamationmark.triangle")
+            setStatusIcon(isActive: false)
         case .stopped:
             statusMenuItem.title = "状态：已停止"
-            setStatusIcon(symbolName: "globe")
+            setStatusIcon(isActive: false)
         }
     }
 
-    private func setStatusIcon(symbolName: String) {
-        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Amatsume init")
-        image?.isTemplate = true
-        statusItem.button?.image = image
+    private func setStatusIcon(isActive: Bool) {
+        statusItem.button?.image = StatusIcon.image(isActive: isActive)
     }
 
     private func startPermissionTimer() {
