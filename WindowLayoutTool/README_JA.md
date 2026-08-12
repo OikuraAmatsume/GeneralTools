@@ -1,6 +1,6 @@
 # ウインドウレイアウトツール（macOS）
 
-Swift / AppKit / Core Graphics / macOS Accessibility API だけで実装した、完全ローカル動作のメニューバーアプリです。通常のメインウインドウ、Dock アイコン、Command-Tab の項目は表示しません。ほかのアプリの調整可能なウインドウをドラッグすると、現在のディスプレイ下部にレイアウトバーが現れます。任意の区画へポインタを移動して離すと、そのウインドウだけを配置します。
+Swift / AppKit / Core Graphics / macOS Accessibility API だけで実装した、完全ローカル動作のメニューバーアプリです。通常のメインウインドウ、Dock アイコン、Command-Tab の項目は表示しません。ほかのアプリの調整可能なウインドウをドラッグすると、レイアウトバーが現在のディスプレイの可視領域における下から約 1/3 の高さへ中央表示されます。任意の区画へポインタを移動して離すと、そのウインドウだけを配置します。
 
 ## 動作環境と構成
 
@@ -96,13 +96,13 @@ xcodebuild -project WindowLayoutTool.xcodeproj \
 - 設定保存はローカル UserDefaults の「有効/一時停止」と「レイアウト機能」だけです。
 - 独自の診断ログはなく、`PrivacyInfo.xcprivacy` は追跡・データ収集なしを宣言します。
 
-## 2026-08-09 の実測結果
+## 2026-08-10 の実測結果
 
 環境：Apple Silicon M4、macOS 26.5、Xcode 26.6、Swift 6.3.3。アプリの deployment target は macOS 13.0 です。
 
 - Debug / Release build：成功。
 - Xcode Analyze：成功。
-- XCTest：15 件成功、失敗 0。正規化レイアウト、Dock 下/左/右の visibleFrame、負座標と上方ディスプレイ、AppKit/AX 変換、全区画の hit test、成功・通常キャンセル・Escape・異常復旧・不正遷移を検証。
+- XCTest：18 件成功、失敗 0。正規化レイアウト、Dock 下/左/右の visibleFrame、オーバーレイの 1/3 高さ配置と拡大サイズ、負座標と上方ディスプレイ、AppKit/AX 変換、全区画の hit test、成功・通常キャンセル・Escape・異常復旧・不正遷移を検証。
 - plist / entitlements / Privacy manifest：`plutil` 成功。
 - ローカル一時署名：`codesign --verify --deep --strict` 成功。`adhoc,runtime` flags を確認。Developer ID 署名と公証は未実施。
 - Release 実行：正常に常駐し、7 秒間の実行ログは 0 byte。

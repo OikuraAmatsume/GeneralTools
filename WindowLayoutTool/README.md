@@ -1,6 +1,6 @@
 # 窗口布局工具（macOS）
 
-这是一个纯原生、完全本地运行的 macOS 菜单栏窗口布局工具。它没有普通主窗口，不显示 Dock 图标，也不出现在 Command-Tab 中；唯一常驻入口是屏幕右上角菜单栏图标。拖动其他应用的可调整窗口时，当前显示器底部会出现布局选择条，将指针移入任一缩略分区并松开即可调整窗口。
+这是一个纯原生、完全本地运行的 macOS 菜单栏窗口布局工具。它没有普通主窗口，不显示 Dock 图标，也不出现在 Command-Tab 中；唯一常驻入口是屏幕右上角菜单栏图标。拖动其他应用的可调整窗口时，布局选择条会在当前显示器可见区域自下而上约 1/3 高度处居中出现，将指针移入任一缩略分区并松开即可调整窗口。
 
 ## 系统与技术
 
@@ -127,7 +127,7 @@ xcodebuild \
 - 源码没有 `NSLog`、`Logger` 或自定义诊断日志；默认不写运行日志。
 - `PrivacyInfo.xcprivacy` 声明不跟踪、不收集数据，并说明 UserDefaults 的必要原因。
 
-## 2026-08-09 实际验证结果
+## 2026-08-10 实际验证结果
 
 环境：Apple Silicon（M4）、macOS 26.5、Xcode 26.6、Swift 6.3.3；部署目标仍为 macOS 13.0。
 
@@ -136,7 +136,7 @@ xcodebuild \
 - Debug build：通过。
 - Release build：通过。
 - Xcode Analyze：通过。
-- XCTest：15 项通过、0 失败。覆盖布局归一化映射、底部/左侧/右侧 Dock 的 `visibleFrame`、负坐标与上方显示器、AppKit/AX 双向坐标、全部分区 hit testing、成功/取消/Escape/异常恢复及非法状态转换。
+- XCTest：18 项通过、0 失败。覆盖布局归一化映射、底部/左侧/右侧 Dock 的 `visibleFrame`、浮层 1/3 高度定位与放大尺寸、负坐标与上方显示器、AppKit/AX 双向坐标、全部分区 hit testing、成功/取消/Escape/异常恢复及非法状态转换。
 - `plutil`：Info.plist、entitlements、Privacy manifest 全部通过。
 - 本地临时签名：`codesign --verify --deep --strict` 通过；CodeDirectory flags 包含 `adhoc,runtime`。未进行 Developer ID 签名或公证。
 - 静态离线检查：Swift 源码中未发现 URLSession、Network.framework、WebSocket、Sparkle、Sentry、Firebase、telemetry 或 analytics 使用；唯一 `http://` 是 Apple plist DTD 声明，不会产生请求。

@@ -21,7 +21,7 @@ final class LoginItemController {
             }
             return SMAppService.mainApp.status == .requiresApproval ? .requiresApproval : .success
         } catch {
-            return .failed(error.localizedDescription)
+            return .failed("操作を完了できませんでした。システム設定の「ログイン項目」を確認してください。")
         }
     }
 

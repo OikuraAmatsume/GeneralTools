@@ -23,19 +23,31 @@ struct OverlayHitRegion: Equatable {
 }
 
 enum OverlayGeometry {
-    static let outerPadding: CGFloat = 12
-    static let cardSpacing: CGFloat = 10
-    static let cardWidth: CGFloat = 106
-    static let previewHeight: CGFloat = 62
-    static let labelHeight: CGFloat = 18
+    static let outerPadding: CGFloat = 14
+    static let cardSpacing: CGFloat = 12
+    static let cardWidth: CGFloat = 126
+    static let previewHeight: CGFloat = 74
+    static let labelHeight: CGFloat = 20
     static let cardHeight: CGFloat = previewHeight + labelHeight
     static let panelHeight: CGFloat = cardHeight + outerPadding * 2
+    static let verticalCenterFraction: CGFloat = 1.0 / 3.0
 
     static func panelSize(layoutCount: Int) -> CGSize {
         let width = outerPadding * 2
             + CGFloat(layoutCount) * cardWidth
             + CGFloat(max(layoutCount - 1, 0)) * cardSpacing
         return CGSize(width: width, height: panelHeight)
+    }
+
+    static func panelOrigin(size: CGSize, in visibleFrame: CGRect) -> CGPoint {
+        let desiredY = visibleFrame.minY
+            + visibleFrame.height * verticalCenterFraction
+            - size.height / 2
+        let maximumY = max(visibleFrame.minY, visibleFrame.maxY - size.height)
+        return CGPoint(
+            x: visibleFrame.midX - size.width / 2,
+            y: min(max(desiredY, visibleFrame.minY), maximumY)
+        )
     }
 
     static func cardFrame(index: Int, bounds: CGRect) -> CGRect {

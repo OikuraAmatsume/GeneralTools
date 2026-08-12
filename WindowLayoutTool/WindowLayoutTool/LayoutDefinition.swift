@@ -23,7 +23,7 @@ struct LayoutDefinition: Identifiable, Equatable {
     static let builtIn: [LayoutDefinition] = [
         LayoutDefinition(
             id: "main-right-stack",
-            name: "主窗 + 右侧",
+            name: "メイン＋右上下",
             regions: [
                 LayoutRegion(id: "main", normalizedFrame: .init(x: 0, y: 0, width: 0.65, height: 1)),
                 LayoutRegion(id: "right-top", normalizedFrame: .init(x: 0.65, y: 0.5, width: 0.35, height: 0.5)),
@@ -32,7 +32,7 @@ struct LayoutDefinition: Identifiable, Equatable {
         ),
         LayoutDefinition(
             id: "halves",
-            name: "左右均分",
+            name: "左右均等",
             regions: [
                 LayoutRegion(id: "left", normalizedFrame: .init(x: 0, y: 0, width: 0.5, height: 1)),
                 LayoutRegion(id: "right", normalizedFrame: .init(x: 0.5, y: 0, width: 0.5, height: 1))
@@ -47,7 +47,7 @@ struct LayoutDefinition: Identifiable, Equatable {
         ),
         LayoutDefinition(
             id: "large-left",
-            name: "Large Left",
+            name: "左を広く",
             regions: [
                 LayoutRegion(id: "large-left", normalizedFrame: .init(x: 0, y: 0, width: 0.65, height: 1)),
                 LayoutRegion(id: "small-right", normalizedFrame: .init(x: 0.65, y: 0, width: 0.35, height: 1))

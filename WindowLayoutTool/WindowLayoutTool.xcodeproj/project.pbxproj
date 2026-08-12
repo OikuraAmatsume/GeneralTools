@@ -202,7 +202,7 @@
 			};
 			buildConfigurationList = DD0000000000000000000062 /* Build configuration list for PBXProject "WindowLayoutTool" */;
 			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = zh_CN;
+			developmentRegion = ja;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,

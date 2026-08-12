@@ -28,19 +28,19 @@ final class OverlayLayoutView: NSView {
             ? NSColor(calibratedWhite: 0.12, alpha: 1)
             : NSColor(calibratedWhite: 0.08, alpha: 0.84)
         background.setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: 14, yRadius: 14).fill()
+        NSBezierPath(roundedRect: bounds, xRadius: 16, yRadius: 16).fill()
 
         let hitRegions = OverlayGeometry.hitRegions(in: bounds, layouts: layouts)
         for (index, layout) in layouts.enumerated() {
             let card = OverlayGeometry.cardFrame(index: index, bounds: bounds)
             NSColor(calibratedWhite: 1, alpha: 0.08).setFill()
-            NSBezierPath(roundedRect: card, xRadius: 8, yRadius: 8).fill()
+            NSBezierPath(roundedRect: card, xRadius: 9, yRadius: 9).fill()
 
             let labelRect = CGRect(x: card.minX + 2, y: card.minY + 1, width: card.width - 4, height: OverlayGeometry.labelHeight - 1)
             let paragraph = NSMutableParagraphStyle()
             paragraph.alignment = .center
             let attributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 10, weight: .medium),
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
                 .foregroundColor: NSColor.white.withAlphaComponent(0.88),
                 .paragraphStyle: paragraph
             ]

@@ -34,9 +34,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func configureStatusItem() {
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "窗口布局")
+            button.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "ウインドウレイアウト")
             button.image?.isTemplate = true
-            button.toolTip = "窗口布局工具"
+            button.toolTip = "ウインドウレイアウトツール"
         }
 
         let menu = NSMenu()
@@ -46,12 +46,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         enabledItem.action = #selector(toggleEnabled)
         menu.addItem(enabledItem)
 
-        loginItem.title = "开机启动"
+        loginItem.title = "ログイン時に起動"
         loginItem.target = self
         loginItem.action = #selector(toggleLoginItem)
         menu.addItem(loginItem)
 
-        layoutsItem.title = "布局功能"
+        layoutsItem.title = "レイアウト機能"
         layoutsItem.target = self
         layoutsItem.action = #selector(toggleLayouts)
         menu.addItem(layoutsItem)
@@ -61,7 +61,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(permissionItem)
 
         let requestPermissionItem = NSMenuItem(
-            title: "申请辅助功能权限",
+            title: "アクセシビリティ権限をリクエスト",
             action: #selector(requestPermission),
             keyEquivalent: ""
         )
@@ -69,7 +69,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(requestPermissionItem)
 
         let settingsItem = NSMenuItem(
-            title: "打开系统权限设置…",
+            title: "システムの権限設定を開く…",
             action: #selector(openPermissionSettings),
             keyEquivalent: ""
         )
@@ -77,11 +77,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
-        let aboutItem = NSMenuItem(title: "关于窗口布局工具", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "ウインドウレイアウトツールについて", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        let quitItem = NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "終了", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -90,12 +90,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func refreshMenuState() {
-        enabledItem.title = settings.monitoringEnabled ? "暂停" : "启用"
+        enabledItem.title = settings.monitoringEnabled ? "一時停止" : "有効にする"
         enabledItem.state = settings.monitoringEnabled ? .on : .off
         loginItem.state = loginItems.isEnabled ? .on : .off
-        loginItem.title = loginItems.requiresApproval ? "开机启动（等待系统批准）" : "开机启动"
+        loginItem.title = loginItems.requiresApproval ? "ログイン時に起動（システムの承認待ち）" : "ログイン時に起動"
         layoutsItem.state = settings.layoutsEnabled ? .on : .off
-        permissionItem.title = permissions.isTrusted ? "辅助功能权限：已授权" : "辅助功能权限：未授权"
+        permissionItem.title = permissions.isTrusted ? "アクセシビリティ権限：許可済み" : "アクセシビリティ権限：未許可"
     }
 
     @objc private func toggleEnabled() {
@@ -117,7 +117,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         case .requiresApproval:
             loginItems.openLoginItemsSettings()
         case .failed(let message):
-            showAlert(title: "无法更改开机启动", message: message)
+            showAlert(title: "ログイン時起動を変更できません", message: message)
         }
         refreshMenuState()
     }
@@ -133,9 +133,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func showAbout() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "窗口布局工具",
+            .applicationName: "ウインドウレイアウトツール",
             .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0",
-            .credits: NSAttributedString(string: "纯本地、原生 AppKit 窗口布局工具。不会连接网络或收集数据。")
+            .credits: NSAttributedString(string: "完全ローカルで動作するネイティブ AppKit ウインドウレイアウトツールです。ネットワーク接続やデータ収集は行いません。")
         ])
     }
 

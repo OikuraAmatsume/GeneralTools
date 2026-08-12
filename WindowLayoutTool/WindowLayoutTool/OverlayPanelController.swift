@@ -98,10 +98,7 @@ final class OverlayPanelController {
     private func position(on screen: NSScreen) {
         let visible = screen.visibleFrame
         let size = layoutView.frame.size
-        let origin = CGPoint(
-            x: visible.midX - size.width / 2,
-            y: visible.minY + 22
-        )
+        let origin = OverlayGeometry.panelOrigin(size: size, in: visible)
         panel.setFrame(CGRect(origin: origin, size: size), display: true)
         targetScreenFrame = screen.frame
         layoutView.needsDisplay = true
