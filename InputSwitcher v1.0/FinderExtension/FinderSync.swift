@@ -31,23 +31,45 @@ final class FinderSync: FIFinderSync {
         }
 
         let menu = NSMenu(title: "Amatsume init")
-        let item = NSMenuItem(
-            title: "Amatsume：进入终端",
+        let terminalItem = NSMenuItem(
+            title: "CMD here",
             action: #selector(openTerminal(_:)),
             keyEquivalent: ""
         )
 
-        item.target = self
-        item.image = NSImage(
+        terminalItem.target = self
+        terminalItem.image = NSImage(
             systemSymbolName: "terminal",
-            accessibilityDescription: "Amatsume：进入终端"
+            accessibilityDescription: "CMD here"
         )
-        item.representedObject = targetedURL?.path
-        menu.addItem(item)
+        terminalItem.representedObject = targetedURL?.path
+        menu.addItem(terminalItem)
+
+        let textFileItem = NSMenuItem(
+            title: "txt here",
+            action: #selector(createTextFile(_:)),
+            keyEquivalent: ""
+        )
+
+        textFileItem.target = self
+        textFileItem.image = NSImage(
+            systemSymbolName: "doc.badge.plus",
+            accessibilityDescription: "txt here"
+        )
+        textFileItem.representedObject = targetedURL?.path
+        menu.addItem(textFileItem)
         return menu
     }
 
     @objc private func openTerminal(_ sender: NSMenuItem) {
+        sendRequest(host: "open-terminal", actionName: "进入终端", sender: sender)
+    }
+
+    @objc private func createTextFile(_ sender: NSMenuItem) {
+        sendRequest(host: "create-text-file", actionName: "新建文本文件", sender: sender)
+    }
+
+    private func sendRequest(host: String, actionName: String, sender: NSMenuItem) {
         let directoryURL: URL?
 
         if let representedPath = sender.representedObject as? String {
@@ -59,28 +81,28 @@ final class FinderSync: FIFinderSync {
         }
 
         guard let path = directoryURL?.standardizedFileURL.path else {
-            logger.error("Finder 菜单缺少目标目录")
+            logger.error("Finder 菜单缺少目标目录：\(actionName, privacy: .public)")
             return
         }
 
-        logger.notice("触发进入终端：\(path, privacy: .public)")
+        logger.notice("触发\(actionName, privacy: .public)：\(path, privacy: .public)")
 
         var components = URLComponents()
 
         components.scheme = "amatsume-init"
-        components.host = "open-terminal"
+        components.host = host
         components.queryItems = [URLQueryItem(name: "path", value: path)]
 
         guard let url = components.url else {
-            logger.error("无法生成主程序 URL：\(path, privacy: .public)")
+            logger.error("无法生成主程序 URL：\(actionName, privacy: .public)")
             return
         }
 
         guard NSWorkspace.shared.open(url) else {
-            logger.error("无法向 Amatsume init 发送进入终端请求")
+            logger.error("无法向 Amatsume init 发送请求：\(actionName, privacy: .public)")
             return
         }
 
-        logger.notice("已向主程序发送进入终端请求")
+        logger.notice("已向主程序发送请求：\(actionName, privacy: .public)")
     }
 }

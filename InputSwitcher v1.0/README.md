@@ -3,7 +3,8 @@
 `Amatsume init` 是一个无主窗口、无 Dock 图标的 macOS 菜单栏应用。它可以：
 
 - 监听 F13，并向 macOS 发送 `Control–空格`，实现输入法切换。
-- 在 Finder 窗口空白处的右键菜单中加入“Amatsume：进入终端”。
+- 在 Finder 窗口空白处的右键菜单中加入“CMD here”。
+- 通过 Finder 右键菜单中的“txt here”在当前目录新建空白 TXT 文件。
 - 从菜单栏选择 Finder 默认打开的终端应用。
 
 ## 菜单栏功能
@@ -24,7 +25,9 @@
 
 ## Finder 中进入终端
 
-新版 App 内置 `AmatsumeFinderExtension`。启用后，在 Finder 当前文件夹的空白位置单击右键，选择“Amatsume：进入终端”，便会用设定的终端打开当前目录。该名称用于避开其他 Finder 扩展提供的同名“进入终端”菜单。
+新版 App 内置 `AmatsumeFinderExtension`。启用后，在 Finder 当前文件夹的空白位置单击右键，选择“CMD here”，便会用设定的终端打开当前目录。该名称用于避开其他 Finder 扩展提供的同名“进入终端”菜单。
+
+选择“txt here”会在当前文件夹创建空白的 `untitled.txt`。若文件已存在，则依次创建 `untitled 2.txt`、`untitled 3.txt`，不会覆盖已有文件。
 
 菜单栏图标 → “默认终端”中会列出本机已安装的以下应用：
 

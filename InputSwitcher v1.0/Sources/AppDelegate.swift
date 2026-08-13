@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSAppleEventManager.shared().setEventHandler(
             self,
-            andSelector: #selector(handleOpenTerminalURL(_:withReplyEvent:)),
+            andSelector: #selector(handleApplicationURL(_:withReplyEvent:)),
             forEventClass: AEEventClass(kInternetEventClass),
             andEventID: AEEventID(kAEGetURL)
         )
@@ -98,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenu.addItem(shortcutFeature)
 
         let finderFeature = NSMenuItem(
-            title: "Finder 空白处右键 → 进入终端",
+            title: "Finder 空白处右键 → CMD here / txt here",
             action: nil,
             keyEquivalent: ""
         )
@@ -283,7 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateTerminalSelection()
     }
 
-    @objc private func handleOpenTerminalURL(
+    @objc private func handleApplicationURL(
         _ event: NSAppleEventDescriptor,
         withReplyEvent replyEvent: NSAppleEventDescriptor
     ) {
@@ -291,16 +291,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let urlString = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
             let url = URL(string: urlString),
             url.scheme == "amatsume-init",
-            url.host == "open-terminal",
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
             let path = components.queryItems?.first(where: { $0.name == "path" })?.value
         else {
-            logger.error("收到无效的进入终端 URL")
+            logger.error("收到无效的 Amatsume URL")
             return
         }
 
-        logger.notice("收到 Finder 进入终端请求：\(path, privacy: .public)")
-        terminalLauncher.open(directory: URL(fileURLWithPath: path, isDirectory: true))
+        let directoryURL = URL(fileURLWithPath: path, isDirectory: true)
+
+        switch url.host {
+        case "open-terminal":
+            logger.notice("收到 Finder 进入终端请求：\(path, privacy: .public)")
+            terminalLauncher.open(directory: directoryURL)
+        case "create-text-file":
+            logger.notice("收到 Finder 新建文本文件请求：\(path, privacy: .public)")
+            createEmptyTextFile(in: directoryURL)
+        default:
+            logger.error("收到未知的 Amatsume URL 动作")
+        }
+    }
+
+    private func createEmptyTextFile(in directory: URL) {
+        let directoryURL = directory.standardizedFileURL
+
+        guard
+            directoryURL.isFileURL,
+            (try? directoryURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        else {
+            logger.error("无法在无效目录中新建文本文件：\(directoryURL.path, privacy: .public)")
+            return
+        }
+
+        for index in 1...10_000 {
+            let fileName = index == 1 ? "untitled.txt" : "untitled \(index).txt"
+            let fileURL = directoryURL.appendingPathComponent(fileName, isDirectory: false)
+
+            do {
+                try Data().write(to: fileURL, options: .withoutOverwriting)
+                logger.notice("已新建文本文件：\(fileURL.path, privacy: .public)")
+                NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                return
+            } catch {
+                let cocoaError = error as NSError
+
+                if cocoaError.domain == NSCocoaErrorDomain,
+                   cocoaError.code == NSFileWriteFileExistsError {
+                    continue
+                }
+
+                logger.error("新建文本文件失败：\(error.localizedDescription, privacy: .public)")
+                return
+            }
+        }
+
+        logger.error("新建文本文件失败：可用文件名已耗尽")
     }
 
     @objc private func showStatusMenu(_ sender: NSStatusBarButton) {
