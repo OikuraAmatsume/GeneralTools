@@ -1,12 +1,34 @@
 import AppKit
 import ApplicationServices
+import FinderSync
+import OSLog
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let logger = Logger(
+        subsystem: "com.amatsume.AmatsumeInit",
+        category: "URLHandler"
+    )
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let statusMenu = NSMenu(title: "Amatsume init")
     private let statusMenuItem = NSMenuItem(title: "状态：正在启动", action: nil, keyEquivalent: "")
+    private let finderExtensionStatusMenuItem = NSMenuItem(
+        title: "Finder 扩展：正在检查",
+        action: nil,
+        keyEquivalent: ""
+    )
     private let keyboardMonitor = KeyboardMonitor()
+    private let terminalLauncher = TerminalLauncher()
+    private var terminalMenuItems: [TerminalApplication: NSMenuItem] = [:]
     private var permissionTimer: Timer?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleOpenTerminalURL(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureStatusItem()
@@ -21,9 +43,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !keyboardMonitor.start(promptForPermission: true) {
             startPermissionTimer()
         }
+
+        refreshFinderExtensionStatus()
+        offerFinderExtensionSetupIfNeeded()
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        refreshFinderExtensionStatus()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        NSAppleEventManager.shared().removeEventHandler(
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
         permissionTimer?.invalidate()
         keyboardMonitor.stop()
     }
@@ -63,6 +96,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shortcutFeature.indentationLevel = 1
         shortcutFeature.isEnabled = false
         statusMenu.addItem(shortcutFeature)
+
+        let finderFeature = NSMenuItem(
+            title: "Finder 空白处右键 → 进入终端",
+            action: nil,
+            keyEquivalent: ""
+        )
+        finderFeature.indentationLevel = 1
+        finderFeature.isEnabled = false
+        statusMenu.addItem(finderFeature)
+        statusMenu.addItem(.separator())
+
+        configureTerminalMenu()
+
+        finderExtensionStatusMenuItem.isEnabled = false
+        statusMenu.addItem(finderExtensionStatusMenuItem)
+
+        let finderSettingsItem = NSMenuItem(
+            title: "管理 Finder 扩展…",
+            action: #selector(openFinderExtensionSettings),
+            keyEquivalent: ""
+        )
+        finderSettingsItem.target = self
+        finderSettingsItem.isEnabled = true
+        statusMenu.addItem(finderSettingsItem)
         statusMenu.addItem(.separator())
 
         let retryItem = NSMenuItem(
@@ -104,6 +161,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenu.addItem(quitItem)
     }
 
+    private func configureTerminalMenu() {
+        let defaultTerminalItem = NSMenuItem(
+            title: "默认终端",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let terminalMenu = NSMenu(title: "默认终端")
+        terminalMenu.autoenablesItems = false
+
+        for terminal in TerminalApplication.availableApplications {
+            let item = NSMenuItem(
+                title: terminal.displayName,
+                action: #selector(selectDefaultTerminal(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = terminal.rawValue
+            item.isEnabled = true
+            terminalMenu.addItem(item)
+            terminalMenuItems[terminal] = item
+        }
+
+        defaultTerminalItem.submenu = terminalMenu
+        statusMenu.addItem(defaultTerminalItem)
+        updateTerminalSelection()
+    }
+
     private func updateStatus(for state: KeyboardMonitor.State) {
         switch state {
         case .running:
@@ -125,6 +209,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setStatusIcon(isActive: Bool) {
         statusItem.button?.image = StatusIcon.image(isActive: isActive)
+    }
+
+    private func updateTerminalSelection() {
+        let selectedTerminal = TerminalApplication.selected
+
+        for (terminal, item) in terminalMenuItems {
+            item.state = terminal == selectedTerminal ? .on : .off
+        }
+    }
+
+    private func refreshFinderExtensionStatus() {
+        finderExtensionStatusMenuItem.title = FIFinderSyncController.isExtensionEnabled
+            ? "Finder 扩展：已启用"
+            : "Finder 扩展：需要启用"
+    }
+
+    private func offerFinderExtensionSetupIfNeeded() {
+        let defaultsKey = "didOfferFinderExtensionSetupV1"
+        guard
+            !FIFinderSyncController.isExtensionEnabled,
+            !UserDefaults.standard.bool(forKey: defaultsKey)
+        else {
+            return
+        }
+
+        UserDefaults.standard.set(true, forKey: defaultsKey)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            FIFinderSyncController.showExtensionManagementInterface()
+        }
     }
 
     private func startPermissionTimer() {
@@ -153,7 +266,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(url)
     }
 
+    @objc private func openFinderExtensionSettings() {
+        FIFinderSyncController.showExtensionManagementInterface()
+    }
+
+    @objc private func selectDefaultTerminal(_ sender: NSMenuItem) {
+        guard
+            let rawValue = sender.representedObject as? String,
+            let terminal = TerminalApplication(rawValue: rawValue),
+            terminal.isAvailable
+        else {
+            return
+        }
+
+        TerminalApplication.selected = terminal
+        updateTerminalSelection()
+    }
+
+    @objc private func handleOpenTerminalURL(
+        _ event: NSAppleEventDescriptor,
+        withReplyEvent replyEvent: NSAppleEventDescriptor
+    ) {
+        guard
+            let urlString = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+            let url = URL(string: urlString),
+            url.scheme == "amatsume-init",
+            url.host == "open-terminal",
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let path = components.queryItems?.first(where: { $0.name == "path" })?.value
+        else {
+            logger.error("收到无效的进入终端 URL")
+            return
+        }
+
+        logger.notice("收到 Finder 进入终端请求：\(path, privacy: .public)")
+        terminalLauncher.open(directory: URL(fileURLWithPath: path, isDirectory: true))
+    }
+
     @objc private func showStatusMenu(_ sender: NSStatusBarButton) {
+        refreshFinderExtensionStatus()
+        updateTerminalSelection()
         statusMenu.popUp(
             positioning: nil,
             at: NSPoint(x: 0, y: sender.bounds.height + 2),
