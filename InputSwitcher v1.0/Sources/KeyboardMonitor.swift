@@ -1,6 +1,8 @@
 import ApplicationServices
+import Carbon
 import CoreGraphics
 import Foundation
+import OSLog
 
 final class KeyboardMonitor {
     enum State: Equatable {
@@ -20,7 +22,11 @@ final class KeyboardMonitor {
     }
 
     private let f13KeyCode: CGKeyCode = 105
-    private let spaceKeyCode: CGKeyCode = 49
+    private let simplifiedChineseInputSourceID = "com.apple.inputmethod.SCIM.ITABC"
+    private let logger = Logger(
+        subsystem: "com.amatsume.AmatsumeInit",
+        category: "KeyboardMonitor"
+    )
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
@@ -98,31 +104,33 @@ final class KeyboardMonitor {
         }
 
         if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
-            sendInputSourceShortcut()
+            selectSimplifiedChineseInputSource()
         }
 
         return nil
     }
 
-    private func sendInputSourceShortcut() {
-        guard
-            let source = CGEventSource(stateID: .hidSystemState),
-            let keyDown = CGEvent(
-                keyboardEventSource: source,
-                virtualKey: spaceKeyCode,
-                keyDown: true
-            ),
-            let keyUp = CGEvent(
-                keyboardEventSource: source,
-                virtualKey: spaceKeyCode,
-                keyDown: false
-            )
-        else { return }
+    private func selectSimplifiedChineseInputSource() {
+        let properties = [
+            kTISPropertyInputSourceID as String: simplifiedChineseInputSourceID
+        ] as CFDictionary
+        let sources = TISCreateInputSourceList(properties, false)
+            .takeRetainedValue() as NSArray
 
-        keyDown.flags = .maskControl
-        keyUp.flags = .maskControl
-        keyDown.post(tap: .cghidEventTap)
-        keyUp.post(tap: .cghidEventTap)
+        guard let inputSource = sources.firstObject as! TISInputSource? else {
+            logger.error(
+                "未找到简体中文输入源：\(self.simplifiedChineseInputSourceID, privacy: .public)"
+            )
+            return
+        }
+
+        let result = TISSelectInputSource(inputSource)
+
+        if result == noErr {
+            logger.notice("F13 已切换到简体中文")
+        } else {
+            logger.error("切换简体中文失败，错误码：\(result)")
+        }
     }
 }
 

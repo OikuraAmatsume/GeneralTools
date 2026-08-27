@@ -87,12 +87,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         featureHeader.isEnabled = false
         statusMenu.addItem(featureHeader)
 
-        let f13Feature = NSMenuItem(title: "F13 → 切换输入法", action: nil, keyEquivalent: "")
+        let f13Feature = NSMenuItem(title: "F13 → 简体中文", action: nil, keyEquivalent: "")
         f13Feature.indentationLevel = 1
         f13Feature.isEnabled = false
         statusMenu.addItem(f13Feature)
 
-        let shortcutFeature = NSMenuItem(title: "系统快捷键：Control–空格", action: nil, keyEquivalent: "")
+        let shortcutFeature = NSMenuItem(title: "目标输入法：简体拼音", action: nil, keyEquivalent: "")
         shortcutFeature.indentationLevel = 1
         shortcutFeature.isEnabled = false
         statusMenu.addItem(shortcutFeature)
