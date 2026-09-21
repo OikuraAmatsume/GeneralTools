@@ -28,6 +28,7 @@ xcrun swiftc \
   -module-cache-path /private/tmp/amatsume-init-swift-module-cache \
   "$PROJECT_DIR/Sources/ApplicationMain.swift" \
   "$PROJECT_DIR/Sources/AppDelegate.swift" \
+  "$PROJECT_DIR/Sources/FinderClipboardImagePaster.swift" \
   "$PROJECT_DIR/Sources/KeyboardMonitor.swift" \
   "$PROJECT_DIR/Sources/StatusIcon.swift" \
   "$PROJECT_DIR/Sources/TerminalApplication.swift" \

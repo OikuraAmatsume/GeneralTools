@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     private let keyboardMonitor = KeyboardMonitor()
     private let terminalLauncher = TerminalLauncher()
+    private var f13ActionMenuItems: [F13Action: NSMenuItem] = [:]
     private var terminalMenuItems: [TerminalApplication: NSMenuItem] = [:]
     private var permissionTimer: Timer?
 
@@ -87,15 +88,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         featureHeader.isEnabled = false
         statusMenu.addItem(featureHeader)
 
-        let f13Feature = NSMenuItem(title: "F13 → 简体中文", action: nil, keyEquivalent: "")
-        f13Feature.indentationLevel = 1
-        f13Feature.isEnabled = false
-        statusMenu.addItem(f13Feature)
+        configureF13ActionMenu()
 
-        let shortcutFeature = NSMenuItem(title: "目标输入法：简体拼音", action: nil, keyEquivalent: "")
-        shortcutFeature.indentationLevel = 1
-        shortcutFeature.isEnabled = false
-        statusMenu.addItem(shortcutFeature)
+        let pasteImageFeature = NSMenuItem(
+            title: "Finder Command–V → 保存剪贴板图片",
+            action: nil,
+            keyEquivalent: ""
+        )
+        pasteImageFeature.indentationLevel = 1
+        pasteImageFeature.isEnabled = false
+        statusMenu.addItem(pasteImageFeature)
 
         let finderFeature = NSMenuItem(
             title: "Finder 空白处右键 → CMD here / txt here",
@@ -188,6 +190,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateTerminalSelection()
     }
 
+    private func configureF13ActionMenu() {
+        let f13ActionItem = NSMenuItem(
+            title: "F13 功能",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let f13ActionMenu = NSMenu(title: "F13 功能")
+        f13ActionMenu.autoenablesItems = false
+
+        for action in F13Action.allCases {
+            let item = NSMenuItem(
+                title: action.menuTitle,
+                action: #selector(selectF13Action(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = action.rawValue
+            item.isEnabled = true
+            f13ActionMenu.addItem(item)
+            f13ActionMenuItems[action] = item
+        }
+
+        f13ActionItem.submenu = f13ActionMenu
+        statusMenu.addItem(f13ActionItem)
+        updateF13ActionSelection()
+    }
+
     private func updateStatus(for state: KeyboardMonitor.State) {
         switch state {
         case .running:
@@ -216,6 +245,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         for (terminal, item) in terminalMenuItems {
             item.state = terminal == selectedTerminal ? .on : .off
+        }
+    }
+
+    private func updateF13ActionSelection() {
+        for (action, item) in f13ActionMenuItems {
+            item.state = action == keyboardMonitor.f13Action ? .on : .off
         }
     }
 
@@ -281,6 +316,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         TerminalApplication.selected = terminal
         updateTerminalSelection()
+    }
+
+    @objc private func selectF13Action(_ sender: NSMenuItem) {
+        guard
+            let rawValue = sender.representedObject as? String,
+            let action = F13Action(rawValue: rawValue)
+        else {
+            return
+        }
+
+        keyboardMonitor.f13Action = action
+        updateF13ActionSelection()
     }
 
     @objc private func handleApplicationURL(
@@ -350,6 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showStatusMenu(_ sender: NSStatusBarButton) {
         refreshFinderExtensionStatus()
+        updateF13ActionSelection()
         updateTerminalSelection()
         statusMenu.popUp(
             positioning: nil,

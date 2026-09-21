@@ -4,6 +4,38 @@ import CoreGraphics
 import Foundation
 import OSLog
 
+enum F13Action: String, CaseIterable {
+    case switchInputSource
+    case simplifiedChinese
+
+    private static let defaultsKey = "selectedF13Action"
+
+    var menuTitle: String {
+        switch self {
+        case .switchInputSource:
+            return "输入法切换"
+        case .simplifiedChinese:
+            return "简体中文"
+        }
+    }
+
+    static var selected: F13Action {
+        get {
+            guard
+                let storedValue = UserDefaults.standard.string(forKey: defaultsKey),
+                let action = F13Action(rawValue: storedValue)
+            else {
+                return .simplifiedChinese
+            }
+
+            return action
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey)
+        }
+    }
+}
+
 final class KeyboardMonitor {
     enum State: Equatable {
         case stopped
@@ -22,6 +54,8 @@ final class KeyboardMonitor {
     }
 
     private let f13KeyCode: CGKeyCode = 105
+    private let spaceKeyCode: CGKeyCode = 49
+    private let vKeyCode: CGKeyCode = 9
     private let simplifiedChineseInputSourceID = "com.apple.inputmethod.SCIM.ITABC"
     private let logger = Logger(
         subsystem: "com.amatsume.AmatsumeInit",
@@ -29,6 +63,15 @@ final class KeyboardMonitor {
     )
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private let finderClipboardImagePaster = FinderClipboardImagePaster()
+
+    var f13Action: F13Action = .selected {
+        didSet {
+            guard f13Action != oldValue else { return }
+            F13Action.selected = f13Action
+            logger.notice("F13 功能已切换为：\(self.f13Action.menuTitle, privacy: .public)")
+        }
+    }
 
     @discardableResult
     func start(promptForPermission: Bool) -> Bool {
@@ -96,18 +139,73 @@ final class KeyboardMonitor {
             return Unmanaged.passUnretained(event)
         }
 
-        guard
-            type == .keyDown,
-            CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == f13KeyCode
-        else {
+        guard type == .keyDown else {
             return Unmanaged.passUnretained(event)
         }
 
-        if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
-            selectSimplifiedChineseInputSource()
+        let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        let isAutoRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+
+        if keyCode == f13KeyCode {
+            if !isAutoRepeat {
+                performF13Action()
+            }
+
+            return nil
         }
 
-        return nil
+        if keyCode == vKeyCode, isCommandOnly(event.flags) {
+            if isAutoRepeat {
+                return finderClipboardImagePaster.canHandlePasteShortcut()
+                    ? nil
+                    : Unmanaged.passUnretained(event)
+            }
+
+            if finderClipboardImagePaster.saveClipboardImageInFocusedFinderWindow() {
+                return nil
+            }
+        }
+
+        return Unmanaged.passUnretained(event)
+    }
+
+    private func isCommandOnly(_ flags: CGEventFlags) -> Bool {
+        let disallowedModifiers: CGEventFlags = [.maskShift, .maskControl, .maskAlternate]
+        return flags.contains(.maskCommand) && flags.intersection(disallowedModifiers).isEmpty
+    }
+
+    private func performF13Action() {
+        switch f13Action {
+        case .switchInputSource:
+            sendInputSourceShortcut()
+        case .simplifiedChinese:
+            selectSimplifiedChineseInputSource()
+        }
+    }
+
+    private func sendInputSourceShortcut() {
+        guard
+            let source = CGEventSource(stateID: .hidSystemState),
+            let keyDown = CGEvent(
+                keyboardEventSource: source,
+                virtualKey: spaceKeyCode,
+                keyDown: true
+            ),
+            let keyUp = CGEvent(
+                keyboardEventSource: source,
+                virtualKey: spaceKeyCode,
+                keyDown: false
+            )
+        else {
+            logger.error("无法生成输入法切换快捷键")
+            return
+        }
+
+        keyDown.flags = .maskControl
+        keyUp.flags = .maskControl
+        keyDown.post(tap: .cghidEventTap)
+        keyUp.post(tap: .cghidEventTap)
+        logger.notice("F13 已触发输入法切换")
     }
 
     private func selectSimplifiedChineseInputSource() {
