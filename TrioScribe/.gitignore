@@ -1,0 +1,13 @@
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# Installers are attached to GitHub Releases.
+/dist/
+
+# Workstation-specific release and recording verification notes.
+/RELEASE.md
+/Diagnostics/Verification-*.md
+
