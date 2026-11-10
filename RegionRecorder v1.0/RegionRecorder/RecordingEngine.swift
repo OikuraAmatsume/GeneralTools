@@ -1,3 +1,4 @@
+import AudioToolbox
 import AVFoundation
 import CoreMedia
 import CoreVideo
@@ -99,7 +100,8 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
     private let sampleQueue = DispatchQueue(label: "com.local.RegionRecorder.capture", qos: .userInitiated)
     private var stream: SCStream?
     private var writer: AVAssetWriter?
-    private var writerInput: AVAssetWriterInput?
+    private var videoWriterInput: AVAssetWriterInput?
+    private var audioWriterInput: AVAssetWriterInput?
     private var sessionStarted = false
     private var framesWritten = 0
     private var sampleError: Error?
@@ -172,8 +174,12 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
             configuration.queueDepth = 6
             configuration.pixelFormat = kCVPixelFormatType_32BGRA
             configuration.showsCursor = true
-            configuration.capturesAudio = false
+            configuration.capturesAudio = settings.shouldCaptureSystemAudio
             configuration.excludesCurrentProcessAudio = true
+            if settings.shouldCaptureSystemAudio {
+                configuration.sampleRate = Self.systemAudioSampleRate
+                configuration.channelCount = Self.systemAudioChannelCount
+            }
             configuration.preservesAspectRatio = true
             configuration.captureResolution = .best
             configuration.shouldBeOpaque = true
@@ -182,11 +188,15 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
                 at: temporaryStore.movieURL,
                 width: Int(pixelSize.width),
                 height: Int(pixelSize.height),
-                frameRate: settings.frameRate
+                frameRate: settings.frameRate,
+                capturesSystemAudio: settings.shouldCaptureSystemAudio
             )
 
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
+            if settings.shouldCaptureSystemAudio {
+                try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: sampleQueue)
+            }
             self.stream = stream
             try await stream.startCapture()
         } catch {
@@ -196,7 +206,7 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 
     func stopAndExport() async throws -> URL {
-        guard let stream, let writer, let writerInput,
+        guard let stream, let writer, let videoWriterInput,
               let temporaryStore,
               let destinationURL, let settings else {
             throw RecordingError.cannotConfigureEncoder
@@ -209,7 +219,8 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
 
             let captureState: (Bool, Int, Error?) = sampleQueue.sync {
                 let state = (sessionStarted, framesWritten, sampleError)
-                writerInput.markAsFinished()
+                videoWriterInput.markAsFinished()
+                audioWriterInput?.markAsFinished()
                 return state
             }
 
@@ -272,26 +283,50 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
         of outputType: SCStreamOutputType
     ) {
-        guard outputType == .screen,
-              sampleBuffer.isValid,
-              isCompleteFrame(sampleBuffer),
+        guard sampleBuffer.isValid,
               let writer,
-              let writerInput,
               writer.status == .writing else {
             return
         }
 
-        if !sessionStarted {
-            writer.startSession(atSourceTime: sampleBuffer.presentationTimeStamp)
-            sessionStarted = true
+        switch outputType {
+        case .screen:
+            appendVideoSample(sampleBuffer, to: writer)
+        case .audio:
+            appendAudioSample(sampleBuffer, to: writer)
+        default:
+            break
         }
+    }
 
-        guard writerInput.isReadyForMoreMediaData else { return }
-        if writerInput.append(sampleBuffer) {
+    private func appendVideoSample(_ sampleBuffer: CMSampleBuffer, to writer: AVAssetWriter) {
+        guard isCompleteFrame(sampleBuffer), let videoWriterInput else { return }
+
+        startSessionIfNeeded(at: sampleBuffer.presentationTimeStamp, writer: writer)
+
+        guard videoWriterInput.isReadyForMoreMediaData else { return }
+        if videoWriterInput.append(sampleBuffer) {
             framesWritten += 1
         } else if sampleError == nil {
             sampleError = RecordingError.encoderFailed(writer.error?.localizedDescription ?? "无法写入视频帧")
         }
+    }
+
+    private func appendAudioSample(_ sampleBuffer: CMSampleBuffer, to writer: AVAssetWriter) {
+        // Anchor the movie timeline to the first complete video frame. Audio arriving before
+        // that frame is intentionally dropped so it can never precede the writer session.
+        guard sessionStarted, let audioWriterInput else { return }
+
+        guard audioWriterInput.isReadyForMoreMediaData else { return }
+        if !audioWriterInput.append(sampleBuffer), sampleError == nil {
+            sampleError = RecordingError.encoderFailed(writer.error?.localizedDescription ?? "无法写入系统声音")
+        }
+    }
+
+    private func startSessionIfNeeded(at sourceTime: CMTime, writer: AVAssetWriter) {
+        guard !sessionStarted else { return }
+        writer.startSession(atSourceTime: sourceTime)
+        sessionStarted = true
     }
 
     private func isCompleteFrame(_ sampleBuffer: CMSampleBuffer) -> Bool {
@@ -306,7 +341,13 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         return status == .complete
     }
 
-    private func configureWriter(at url: URL, width: Int, height: Int, frameRate: Int) throws {
+    private func configureWriter(
+        at url: URL,
+        width: Int,
+        height: Int,
+        frameRate: Int,
+        capturesSystemAudio: Bool
+    ) throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
         let bitsPerSecond = min(30_000_000, max(6_000_000, width * height * 6))
         let outputSettings: [String: Any] = [
@@ -320,19 +361,47 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
             ]
         ]
-        let input = AVAssetWriterInput(mediaType: .video, outputSettings: outputSettings)
-        input.expectsMediaDataInRealTime = true
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: outputSettings)
+        videoInput.expectsMediaDataInRealTime = true
 
-        guard writer.canAdd(input) else {
+        guard writer.canAdd(videoInput) else {
             throw RecordingError.cannotConfigureEncoder
         }
-        writer.add(input)
+        writer.add(videoInput)
+
+        var audioInput: AVAssetWriterInput?
+        if capturesSystemAudio {
+            let input = AVAssetWriterInput(
+                mediaType: .audio,
+                outputSettings: Self.systemAudioOutputSettings()
+            )
+            input.expectsMediaDataInRealTime = true
+            guard writer.canAdd(input) else {
+                throw RecordingError.cannotConfigureEncoder
+            }
+            writer.add(input)
+            audioInput = input
+        }
+
         guard writer.startWriting() else {
             throw RecordingError.encoderFailed(writer.error?.localizedDescription ?? "编码器未能启动")
         }
 
         self.writer = writer
-        writerInput = input
+        videoWriterInput = videoInput
+        audioWriterInput = audioInput
+    }
+
+    static let systemAudioSampleRate = 48_000
+    static let systemAudioChannelCount = 2
+
+    static func systemAudioOutputSettings() -> [String: Any] {
+        [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: systemAudioSampleRate,
+            AVNumberOfChannelsKey: systemAudioChannelCount,
+            AVEncoderBitRateKey: 192_000
+        ]
     }
 
     private func finishWriting(_ writer: AVAssetWriter) async {
@@ -361,7 +430,8 @@ final class RecordingEngine: NSObject, SCStreamOutput, SCStreamDelegate {
         let store = temporaryStore
 
         stream = nil
-        writerInput = nil
+        videoWriterInput = nil
+        audioWriterInput = nil
         writer = nil
         temporaryStore = nil
         destinationURL = nil

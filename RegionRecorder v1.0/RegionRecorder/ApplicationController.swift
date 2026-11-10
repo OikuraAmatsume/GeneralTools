@@ -56,6 +56,9 @@ final class ApplicationController: NSObject {
             menu.addItem(item("録画範囲を再作成", action: #selector(recreateRegion)))
             menu.addItem(.separator())
             menu.addItem(formatMenuItem())
+            if settings.format == .mp4 {
+                menu.addItem(systemAudioMenuItem())
+            }
             menu.addItem(frameRateMenuItem())
             menu.addItem(scaleMenuItem())
             menu.addItem(.separator())
@@ -115,6 +118,12 @@ final class ApplicationController: NSObject {
         return parent
     }
 
+    private func systemAudioMenuItem() -> NSMenuItem {
+        let menuItem = item("システム音声を収録", action: #selector(toggleSystemAudio))
+        menuItem.state = settings.capturesSystemAudio ? .on : .off
+        return menuItem
+    }
+
     private func scaleMenuItem() -> NSMenuItem {
         let percentage = Int((settings.outputScale * 100).rounded())
         let parent = NSMenuItem(title: "スケール：\(percentage)%", action: nil, keyEquivalent: "")
@@ -148,6 +157,11 @@ final class ApplicationController: NSObject {
     @objc private func selectFrameRate(_ sender: NSMenuItem) {
         guard RecordingSettings.availableFrameRates.contains(sender.tag) else { return }
         settings.frameRate = sender.tag
+    }
+
+    @objc private func toggleSystemAudio() {
+        guard settings.format == .mp4 else { return }
+        settings.capturesSystemAudio.toggle()
     }
 
     @objc private func selectScale(_ sender: NSMenuItem) {

@@ -4,6 +4,26 @@ import XCTest
 @testable import RegionRecorder
 
 final class MediaExportTests: XCTestCase {
+    func testSystemAudioIsOptionalAndLimitedToMP4() {
+        var settings = RecordingSettings()
+        XCTAssertFalse(settings.shouldCaptureSystemAudio)
+
+        settings.capturesSystemAudio = true
+        XCTAssertTrue(settings.shouldCaptureSystemAudio)
+
+        settings.format = .gif
+        XCTAssertFalse(settings.shouldCaptureSystemAudio)
+    }
+
+    func testSystemAudioUsesAACAtScreenCaptureKitFormat() {
+        let outputSettings = RecordingEngine.systemAudioOutputSettings()
+
+        XCTAssertEqual(outputSettings[AVFormatIDKey] as? AudioFormatID, kAudioFormatMPEG4AAC)
+        XCTAssertEqual(outputSettings[AVSampleRateKey] as? Int, RecordingEngine.systemAudioSampleRate)
+        XCTAssertEqual(outputSettings[AVNumberOfChannelsKey] as? Int, RecordingEngine.systemAudioChannelCount)
+        XCTAssertEqual(outputSettings[AVEncoderBitRateKey] as? Int, 192_000)
+    }
+
     func testRecordingTemporaryStoreRemovesEveryIntermediateArtifact() throws {
         let temporaryRoot = FileManager.default.temporaryDirectory
             .appendingPathComponent("RegionRecorderStoreTests-\(UUID().uuidString)", isDirectory: true)

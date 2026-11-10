@@ -23,6 +23,11 @@ struct RecordingSettings: Equatable {
     var format: RecordingFormat = .mp4
     var frameRate: Int = 30
     var outputScale: Double = 1.0
+    var capturesSystemAudio = false
+
+    var shouldCaptureSystemAudio: Bool {
+        format == .mp4 && capturesSystemAudio
+    }
 
     static let availableFrameRates = [15, 24, 30, 60]
     static let availableScales = [0.25, 0.5, 0.75, 1.0]
